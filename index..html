@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>매일 건강 체크표</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti for celebratory animations -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Noto Sans KR -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Noto Sans KR', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        
+        /* High contrast touch feedback active animations */
+        .touch-active:active {
+            transform: scale(0.97);
+        }
+
+        /* Custom pulsing stamp animation */
+        @keyframes stamp-bounce {
+            0% { transform: scale(0.3) rotate(-10deg); opacity: 0; }
+            50% { transform: scale(1.1) rotate(5deg); opacity: 1; }
+            70% { transform: scale(0.95) rotate(-3deg); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        .animate-stamp {
+            animation: stamp-bounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* Large checkbox styling */
+        .custom-checkbox {
+            width: 3rem;
+            height: 3rem;
+            min-width: 3rem;
+            min-height: 3rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 pb-12 flex justify-center">
+
+    <div class="w-full max-w-md md:max-w-xl bg-slate-50 min-h-screen shadow-2xl flex flex-col justify-between relative overflow-x-hidden">
+        
+        <!-- Header & Date Navigation Section -->
+        <div>
+            <header class="bg-emerald-600 text-white p-5 rounded-b-3xl shadow-lg sticky top-0 z-10">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-lg font-bold bg-emerald-700/60 px-3 py-1 rounded-full flex items-center gap-2">
+                        <i class="fa-solid font-bold fa-heart-pulse text-red-300 animate-pulse"></i> 매일 건강 체크표
+                    </span>
+                    <button id="reset-btn" onclick="confirmResetToday()" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-base px-3 py-1.5 rounded-xl transition flex items-center gap-1 active:scale-95">
+                        <i class="fa-solid fa-rotate-right"></i> 초기화
+                    </button>
+                </div>
+
+                <!-- Date Selector Header -->
+                <div class="flex justify-between items-center bg-white/10 rounded-2xl p-2 backdrop-blur-sm">
+                    <button onclick="changeDate(-1)" class="p-3 text-2xl hover:bg-white/20 rounded-xl transition active:scale-90" aria-label="어제">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <div class="text-center">
+                        <p id="current-date-str" class="text-2xl md:text-3xl font-black tracking-tight leading-tight">
+                            ----년 --월 --일
+                        </p>
+                        <p id="date-subtitle" class="text-emerald-100 font-bold text-sm mt-0.5">
+                            오늘
+                        </p>
+                    </div>
+                    <button onclick="changeDate(1)" class="p-3 text-2xl hover:bg-white/20 rounded-xl transition active:scale-90" aria-label="내일">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Main Content Container -->
+            <main class="p-4 md:p-6 space-y-5">
+
+                <!-- Progress Bar Card -->
+                <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80">
+                    <div class="flex justify-between items-end mb-2">
+                        <span class="text-lg md:text-xl font-bold text-slate-700">오늘의 목표</span>
+                        <span id="progress-text" class="text-2xl font-black text-emerald-600">0 / 4 완료</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-6 rounded-full overflow-hidden p-1 border border-slate-200">
+                        <div id="progress-bar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500 w-0"></div>
+                    </div>
+                </div>
+
+                <!-- Streak & Encourage Banner -->
+                <div id="streak-banner" class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-amber-400 text-white rounded-full flex items-center justify-center text-2xl shadow">
+                            🔥
+                        </div>
+                        <div>
+                            <p class="text-xs text-amber-800 font-bold">연속 달성 기록</p>
+                            <p id="streak-count" class="text-xl font-black text-amber-900">1일째 건강 유지 중!</p>
+                        </div>
+                    </div>
+                    <button onclick="showCalendarModal()" class="text-amber-800 hover:text-amber-950 font-bold text-sm bg-amber-200/70 hover:bg-amber-200 px-3 py-2 rounded-xl transition">
+                        기록보기 <i class="fa-solid fa-calendar-days ml-1"></i>
+                    </button>
+                </div>
+
+                <!-- Checklist Items -->
+                <div class="space-y-4">
+
+                    <!-- 1. Blood Pressure Card -->
+                    <div id="card-bp" class="bg-white rounded-3xl p-5 shadow-md border-2 border-slate-200 transition-all duration-300">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-4 flex-1 cursor-pointer" onclick="toggleCheck('bp')">
+                                <div class="w-14 h-14 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center text-3xl font-bold shrink-0">
+                                    🩸
+                                </div>
+                                <div>
+                                    <h2 class="text-2xl font-black text-slate-800">혈압 체크</h2>
+                                    <p id="bp-status-desc" class="text-base text-slate-500 font-medium">오늘 혈압을 측정하셨나요?</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Large Touch Target Checkbox -->
+                            <button onclick="toggleCheck('bp')" class="custom-checkbox rounded-2xl border-4 border-slate-300 flex items-center justify-center transition-all duration-200 active:scale-90 text-2xl focus:outline-none" id="check-btn-bp" aria-label="혈압 체크">
+                                <i class="fa-solid fa-check text-white hidden"></i>
+                            </button>
+                        </div>
+
+                        <!-- Optional Blood Pressure Detail Log -->
+                        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                            <span class="text-base text-slate-600 font-bold">측정 수치 (선택):</span>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="bp-sys" placeholder="수축기(120)" onchange="saveBpValue()" class="w-24 text-center text-lg font-bold p-2 bg-slate-100 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                <span class="text-slate-400 font-bold">/</span>
+                                <input type="number" id="bp-dia" placeholder="이완기(80)" onchange="saveBpValue()" class="w-24 text-center text-lg font-bold p-2 bg-slate-100 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Medicine Card -->
+                    <div id="card-medicine" class="bg-white rounded-3xl p-5 shadow-md border-2 border-slate-200 transition-all duration-300">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-4 flex-1 cursor-pointer" onclick="toggleCheck('medicine')">
+                                <div class="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center text-3xl font-bold shrink-0">
+                                    💊
+                                </div>
+                                <div>
+                                    <h2 class="text-2xl font-black text-slate-800">약 먹기</h2>
+                                    <p id="med-status-desc" class="text-base text-slate-500 font-medium">처방약을 모두 드셨나요?</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Large Touch Target Checkbox -->
+                            <button onclick="toggleCheck('medicine')" class="custom-checkbox rounded-2xl border-4 border-slate-300 flex items-center justify-center transition-all duration-200 active:scale-90 text-2xl focus:outline-none" id="check-btn-medicine" aria-label="약 먹기 체크">
+                                <i class="fa-solid fa-check text-white hidden"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3. Water Intake Card -->
+                    <div id="card-water" class="bg-white rounded-3xl p-5 shadow-md border-2 border-slate-200 transition-all duration-300">
+                        <div class="flex items-center justify-between gap-3 mb-3">
+                            <div class="flex items-center gap-4 flex-1">
+                                <div class="w-14 h-14 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center text-3xl font-bold shrink-0">
+                                    💧
+                                </div>
+                                <div>
+                                    <h2 class="text-2xl font-black text-slate-800">물 마시기</h2>
+                                    <p class="text-base text-slate-500 font-medium">하루 5잔 이상 권장</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Large Water Count Indicator -->
+                            <div class="text-right">
+                                <span id="water-count-display" class="text-3xl font-black text-sky-600">0</span>
+                                <span class="text-lg font-bold text-slate-500"> / 5잔</span>
+                            </div>
+                        </div>
+
+                        <!-- Water Controls with Big Touch Buttons -->
+                        <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+                            <button onclick="addWater(-1)" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3.5 rounded-2xl text-xl font-black active:scale-95 transition flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-minus"></i> 1잔 차감
+                            </button>
+                            <button onclick="addWater(1)" class="flex-2 bg-sky-500 hover:bg-sky-600 text-white py-3.5 px-6 rounded-2xl text-xl font-black active:scale-95 transition flex items-center justify-center gap-2 shadow-md shadow-sky-200">
+                                <i class="fa-solid fa-plus text-2xl"></i> +1잔 마심
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 4. Exercise Card -->
+                    <div id="card-exercise" class="bg-white rounded-3xl p-5 shadow-md border-2 border-slate-200 transition-all duration-300">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-4 flex-1 cursor-pointer" onclick="toggleCheck('exercise')">
+                                <div class="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center text-3xl font-bold shrink-0">
+                                    🏃‍♂️
+                                </div>
+                                <div>
+                                    <h2 class="text-2xl font-black text-slate-800">운동하기</h2>
+                                    <p id="ex-status-desc" class="text-base text-slate-500 font-medium">산책, 스트레칭 등 20분 이상</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Large Touch Target Checkbox -->
+                            <button onclick="toggleCheck('exercise')" class="custom-checkbox rounded-2xl border-4 border-slate-300 flex items-center justify-center transition-all duration-200 active:scale-90 text-2xl focus:outline-none" id="check-btn-exercise" aria-label="운동 체크">
+                                <i class="fa-solid fa-check text-white hidden"></i>
+                            </button>
+                        </div>
+
+                        <!-- Quick Exercise Type Buttons -->
+                        <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
+                            <button onclick="quickSelectExercise('산책 30분')" class="text-base bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-800 font-bold px-3 py-2 rounded-xl transition">
+                                🚶‍♂️ 산책 30분
+                            </button>
+                            <button onclick="quickSelectExercise('스트레칭')" class="text-base bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-800 font-bold px-3 py-2 rounded-xl transition">
+                                🧘‍♀️ 스트레칭
+                            </button>
+                            <button onclick="quickSelectExercise('체조/자전거')" class="text-base bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-800 font-bold px-3 py-2 rounded-xl transition">
+                                🚴‍♂️ 실내 운동
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+            </main>
+        </div>
+
+        <!-- Footer / Sound Option -->
+        <footer class="p-4 text-center border-t border-slate-200 bg-white">
+            <div class="flex justify-center items-center gap-6 text-slate-600 font-bold text-base">
+                <button onclick="toggleSound()" id="sound-toggle-btn" class="flex items-center gap-2 hover:text-emerald-600 transition">
+                    <i class="fa-solid fa-volume-high text-xl text-emerald-600" id="sound-icon"></i>
+                    <span id="sound-status-text">소리 효과 켜짐</span>
+                </button>
+                <span>|</span>
+                <button onclick="showHelpModal()" class="flex items-center gap-2 hover:text-emerald-600 transition">
+                    <i class="fa-solid fa-circle-question text-xl text-emerald-600"></i>
+                    <span>사용 방법</span>
+                </button>
+            </div>
+        </footer>
+
+        <!-- MODAL 1: "참 잘했어요!" Celebration Modal -->
+        <div id="congrats-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl p-6 md:p-8 w-full max-w-sm text-center shadow-2xl transform transition-all border-4 border-amber-300 relative animate-stamp">
+                
+                <!-- Red Stamp Graphic -->
+                <div class="w-32 h-32 mx-auto mb-4 rounded-full border-8 border-red-500 flex flex-col items-center justify-center bg-red-50 shadow-inner transform -rotate-12">
+                    <span class="text-red-500 font-black text-2xl tracking-tight leading-none">오늘 목표</span>
+                    <span class="text-red-600 font-black text-3xl tracking-widest my-1">참 잘했어요</span>
+                    <i class="fa-solid fa-star text-red-500 text-lg"></i>
+                </div>
+
+                <h3 class="text-3xl font-black text-slate-800 mb-2">축하합니다! 🎉</h3>
+                <p class="text-xl font-bold text-slate-600 mb-6">
+                    오늘의 모든 건강 체크를 완료하셨습니다! 내일도 함께해요.
+                </p>
+
+                <button onclick="closeCongratsModal()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-2xl py-4 rounded-2xl shadow-lg active:scale-95 transition">
+                    확인했어요 👍
+                </button>
+            </div>
+        </div>
+
+        <!-- MODAL 2: History & Streak Calendar Modal -->
+        <div id="calendar-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-200">
+                <div class="flex justify-between items-center mb-4 border-b pb-3">
+                    <h3 class="text-2xl font-black text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-calendar-check text-emerald-600"></i> 건강 체크 기록
+                    </h3>
+                    <button onclick="closeCalendarModal()" class="text-slate-400 hover:text-slate-600 text-2xl p-2">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <p class="text-base text-slate-600 font-bold mb-4">최근 7일간의 목표 달성 현황입니다:</p>
+                <div id="weekly-history-list" class="space-y-3 mb-6">
+                    <!-- Dynamic rendering of last 7 days -->
+                </div>
+
+                <button onclick="closeCalendarModal()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-xl py-3.5 rounded-2xl">
+                    닫기
+                </button>
+            </div>
+        </div>
+
+        <!-- MODAL 3: Help / Info Modal -->
+        <div id="help-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-200">
+                <div class="flex justify-between items-center mb-4 border-b pb-3">
+                    <h3 class="text-2xl font-black text-slate-800">도움말 & 안내</h3>
+                    <button onclick="closeHelpModal()" class="text-slate-400 hover:text-slate-600 text-2xl p-2">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-4 text-left text-lg text-slate-700 font-medium">
+                    <div class="flex gap-3">
+                        <span class="text-2xl">👉</span>
+                        <p>각 항목을 **누르시면** 체크/해제가 됩니다.</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <span class="text-2xl">💧</span>
+                        <p>물 마시기는 **+1잔 버튼**을 눌러 5잔 이상 채우면 완료됩니다.</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <span class="text-2xl">💯</span>
+                        <p>4가지 항목을 모두 완료하면 **'참 잘했어요'** 도장이 찍힙니다!</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <span class="text-2xl">💾</span>
+                        <p>모든 기록은 스마트폰에 **자동으로 저장**되어 언제든 다시 확인하실 수 있습니다.</p>
+                    </div>
+                </div>
+
+                <button onclick="closeHelpModal()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xl py-3.5 rounded-2xl mt-6">
+                    알겠습니다
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // App State Variables
+        let currentDate = new Date();
+        let soundEnabled = true;
+        
+        // Target daily goal items
+        const TOTAL_ITEMS = 4;
+        
+        // Audio Context for Chimes
+        let audioCtx = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    audioCtx = new AudioContext();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        // Get YYYY-MM-DD string for key indexing
+        function formatDateKey(dateObj) {
+            const yyyy = dateObj.getFullYear();
+            const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const dd = String(dateObj.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        // Format Date for Display (e.g., "2026년 10월 7일 수요일")
+        function formatDateDisplay(dateObj) {
+            const days = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+            const year = dateObj.getFullYear();
+            const month = dateObj.getMonth() + 1;
+            const date = dateObj.getDate();
+            const dayName = days[dateObj.getDay()];
+            return `${year}년 ${month}월 ${date}일 (${dayName.charAt(0)})`;
+        }
+
+        // Get default empty record
+        function getDefaultRecord() {
+            return {
+                bp: false,
+                bpSys: '',
+                bpDia: '',
+                medicine: false,
+                waterCount: 0,
+                exercise: false,
+                exerciseNote: '',
+                celebrated: false
+            };
+        }
+
+        // Load Record for specific date key
+        function loadData(dateKey) {
+            const raw = localStorage.getItem('health_check_' + dateKey);
+            if (raw) {
+                try {
+                    return JSON.parse(raw);
+                } catch (e) {
+                    return getDefaultRecord();
+                }
+            }
+            return getDefaultRecord();
+        }
+
+        // Save Record for specific date key
+        function saveData(dateKey, data) {
+            localStorage.setItem('health_check_' + dateKey, JSON.stringify(data));
+        }
+
+        // UI Update Function
+        function renderUI() {
+            const dateKey = formatDateKey(currentDate);
+            const data = loadData(dateKey);
+            const todayKey = formatDateKey(new Date());
+
+            // 1. Date Header Text
+            document.getElementById('current-date-str').innerText = formatDateDisplay(currentDate);
+            
+            // Subtitle status (오늘 / 어제 / 내일 / X일 전)
+            const subtitleEl = document.getElementById('date-subtitle');
+            if (dateKey === todayKey) {
+                subtitleEl.innerText = '✨ 오늘';
+                subtitleEl.className = 'text-emerald-100 font-bold text-sm mt-0.5';
+            } else {
+                const diffDays = Math.round((currentDate - new Date().setHours(0,0,0,0)) / (1000 * 60 * 60 * 24));
+                if (diffDays === -1) subtitleEl.innerText = '⏮️ 어제';
+                else if (diffDays === 1) subtitleEl.innerText = '⏭️ 내일';
+                else subtitleEl.innerText = `${Math.abs(diffDays)}일 ${diffDays < 0 ? '전' : '후'}`;
+                subtitleEl.className = 'text-amber-200 font-bold text-sm mt-0.5';
+            }
+
+            // 2. Render Check States for BP, Medicine, Exercise
+            renderCardState('bp', data.bp, '혈압 측정 완료!', '오늘 혈압을 측정하셨나요?');
+            renderCardState('medicine', data.medicine, '약 복용 완료!', '처방약을 모두 드셨나요?');
+            
+            // Water Intake State (5 glasses target)
+            const waterCompleted = data.waterCount >= 5;
+            renderCardState('water-card-only', waterCompleted, '', '');
+            document.getElementById('water-count-display').innerText = data.waterCount;
+
+            renderCardState('exercise', data.exercise, '오늘 운동 완료!', '산책, 스트레칭 등 20분 이상');
+
+            // Set Blood Pressure Inputs
+            document.getElementById('bp-sys').value = data.bpSys || '';
+            document.getElementById('bp-dia').value = data.bpDia || '';
+
+            // 3. Progress Bar Calculation
+            let completedCount = 0;
+            if (data.bp) completedCount++;
+            if (data.medicine) completedCount++;
+            if (data.waterCount >= 5) completedCount++;
+            if (data.exercise) completedCount++;
+
+            document.getElementById('progress-text').innerText = `${completedCount} / ${TOTAL_ITEMS} 완료`;
+            const percentage = (completedCount / TOTAL_ITEMS) * 100;
+            document.getElementById('progress-bar').style.width = `${percentage}%`;
+
+            // 4. Trigger Celebration if All Checked & Not yet celebrated
+            if (completedCount === TOTAL_ITEMS && !data.celebrated) {
+                data.celebrated = true;
+                saveData(dateKey, data);
+                setTimeout(() => {
+                    triggerCelebration();
+                }, 300);
+            }
+
+            // Update Streak Count
+            updateStreakCount();
+        }
+
+        // Helper to update card visual styles when checked/unchecked
+        function renderCardState(type, isChecked, completedText, defaultText) {
+            if (type === 'water-card-only') {
+                const card = document.getElementById('card-water');
+                if (isChecked) {
+                    card.classList.add('border-sky-500', 'bg-sky-50/40');
+                } else {
+                    card.classList.remove('border-sky-500', 'bg-sky-50/40');
+                }
+                return;
+            }
+
+            const card = document.getElementById(`card-${type}`);
+            const btn = document.getElementById(`check-btn-${type}`);
+            const icon = btn.querySelector('i');
+            const desc = document.getElementById(`${type === 'medicine' ? 'med' : type === 'exercise' ? 'ex' : 'bp'}-status-desc`);
+
+            if (isChecked) {
+                card.classList.add('border-emerald-500', 'bg-emerald-50/50');
+                btn.classList.add('bg-emerald-500', 'border-emerald-500');
+                btn.classList.remove('border-slate-300');
+                icon.classList.remove('hidden');
+                if (desc) desc.innerText = completedText;
+            } else {
+                card.classList.remove('border-emerald-500', 'bg-emerald-50/50');
+                btn.classList.remove('bg-emerald-500', 'border-emerald-500');
+                btn.classList.add('border-slate-300');
+                icon.classList.add('hidden');
+                if (desc) desc.innerText = defaultText;
+            }
+        }
+
+        // Toggle simple check items
+        function toggleCheck(type) {
+            playTapSound();
+            const dateKey = formatDateKey(currentDate);
+            const data = loadData(dateKey);
+
+            data[type] = !data[type];
+            saveData(dateKey, data);
+            renderUI();
+        }
+
+        // Water Counter Handler
+        function addWater(delta) {
+            playTapSound();
+            const dateKey = formatDateKey(currentDate);
+            const data = loadData(dateKey);
+
+            data.waterCount = Math.max(0, (data.waterCount || 0) + delta);
+            saveData(dateKey, data);
+            renderUI();
+        }
+
+        // Save BP input values
+        function saveBpValue() {
+            const dateKey = formatDateKey(currentDate);
+            const data = loadData(dateKey);
+
+            data.bpSys = document.getElementById('bp-sys').value;
+            data.bpDia = document.getElementById('bp-dia').value;
+            if (data.bpSys || data.bpDia) {
+                data.bp = true;
+            }
+            saveData(dateKey, data);
+            renderUI();
+        }
+
+        // Quick exercise selection helper
+        function quickSelectExercise(name) {
+            playTapSound();
+            const dateKey = formatDateKey(currentDate);
+            const data = loadData(dateKey);
+
+            data.exercise = true;
+            data.exerciseNote = name;
+            saveData(dateKey, data);
+            renderUI();
+        }
+
+        // Change Date Navigation
+        function changeDate(days) {
+            playTapSound();
+            currentDate.setDate(currentDate.getDate() + days);
+            renderUI();
+        }
+
+        // Confirm Today Reset
+        function confirmResetToday() {
+            if (confirm("오늘 기록을 모두 초기화할까요?")) {
+                const dateKey = formatDateKey(currentDate);
+                localStorage.removeItem('health_check_' + dateKey);
+                renderUI();
+            }
+        }
+
+        // Celebration Trigger (Confetti + Sound + Modal)
+        function triggerCelebration() {
+            playVictorySound();
+            
+            // Launch Confetti
+            if (window.confetti) {
+                confetti({
+                    particleCount: 120,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            // Show Modal
+            const modal = document.getElementById('congrats-modal');
+            modal.classList.remove('hidden');
+        }
+
+        function closeCongratsModal() {
+            playTapSound();
+            document.getElementById('congrats-modal').classList.add('hidden');
+        }
+
+        // Calculate and display continuous completion streak
+        function updateStreakCount() {
+            let streak = 0;
+            let checkDate = new Date();
+            
+            while (true) {
+                const key = formatDateKey(checkDate);
+                const rec = loadData(key);
+                const count = (rec.bp ? 1 : 0) + (rec.medicine ? 1 : 0) + (rec.waterCount >= 5 ? 1 : 0) + (rec.exercise ? 1 : 0);
+                
+                if (count === TOTAL_ITEMS) {
+                    streak++;
+                    checkDate.setDate(checkDate.getDate() - 1);
+                } else {
+                    // If today isn't finished yet, don't break yesterday's streak
+                    const todayStr = formatDateKey(new Date());
+                    if (key === todayStr) {
+                        checkDate.setDate(checkDate.getDate() - 1);
+                        continue;
+                    }
+                    break;
+                }
+            }
+
+            const streakEl = document.getElementById('streak-count');
+            if (streak > 0) {
+                streakEl.innerText = `${streak}일 연속 달성 중! 🔥`;
+            } else {
+                streakEl.innerText = `오늘의 첫 시작을 함께해요! 💪`;
+            }
+        }
+
+        // Show Weekly History Modal
+        function showCalendarModal() {
+            playTapSound();
+            const listEl = document.getElementById('weekly-history-list');
+            listEl.innerHTML = '';
+
+            for (let i = 0; i < 7; i++) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const key = formatDateKey(d);
+                const data = loadData(key);
+
+                const count = (data.bp ? 1 : 0) + (data.medicine ? 1 : 0) + (data.waterCount >= 5 ? 1 : 0) + (data.exercise ? 1 : 0);
+                const isAllDone = count === TOTAL_ITEMS;
+
+                const row = document.createElement('div');
+                row.className = `p-3 rounded-2xl flex justify-between items-center ${isAllDone ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-100'}`;
+                
+                row.innerHTML = `
+                    <div>
+                        <p class="font-bold text-slate-800 text-base">${formatDateDisplay(d)}</p>
+                        <p class="text-sm font-semibold text-slate-500">${count} / ${TOTAL_ITEMS} 항목 완료</p>
+                    </div>
+                    <div>
+                        ${isAllDone ? '<span class="text-red-500 font-black text-lg bg-red-100 px-3 py-1 rounded-full border border-red-300">참 잘했어요 💯</span>' : `<span class="text-slate-600 font-bold text-base bg-slate-200 px-3 py-1 rounded-full">${count}개 완료</span>`}
+                    </div>
+                `;
+                listEl.appendChild(row);
+            }
+
+            document.getElementById('calendar-modal').classList.remove('hidden');
+        }
+
+        function closeCalendarModal() {
+            playTapSound();
+            document.getElementById('calendar-modal').classList.add('hidden');
+        }
+
+        function showHelpModal() {
+            playTapSound();
+            document.getElementById('help-modal').classList.remove('hidden');
+        }
+
+        function closeHelpModal() {
+            playTapSound();
+            document.getElementById('help-modal').classList.add('hidden');
+        }
+
+        // Sound Toggle
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            const text = document.getElementById('sound-status-text');
+
+            if (soundEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-xl text-emerald-600';
+                text.innerText = '소리 효과 켜짐';
+                playTapSound();
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-xl text-slate-400';
+                text.innerText = '소리 효과 끔';
+            }
+        }
+
+        // Web Audio Synthesizer Effects
+        function playTapSound() {
+            if (!soundEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+                osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.08); // E5
+
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start();
+                osc.stop(ctx.currentTime + 0.08);
+            } catch(e) {}
+        }
+
+        function playVictorySound() {
+            if (!soundEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.12);
+
+                    gain.gain.setValueAtTime(0.2, ctx.currentTime + idx * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.12 + 0.3);
+
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc.start(ctx.currentTime + idx * 0.12);
+                    osc.stop(ctx.currentTime + idx * 0.12 + 0.3);
+                });
+            } catch(e) {}
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            renderUI();
+        };
+    </script>
+</body>
+</html>
